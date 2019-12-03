@@ -32,9 +32,9 @@ setwd(path)
 Next we load the lab and spec data.  This spectral data has already been preproscessed (smoothed and filtered). Your data will lilkely need some smoothing but it is often instrument dependent.  
 
 ```{r}
-spec <- read.table('Bayer_DG_R10_300-2500.txt', head = T, stringsAsFactors = F)
+spec <- read.table(' .txt', head = T, stringsAsFactors = F)
 
-lab <- read.csv('BAYER_FINAL.csv', stringsAsFactors = F)
+lab <- read.csv(' .csv', stringsAsFactors = F)
 head(lab) #inspect the labdata
 ```
 
