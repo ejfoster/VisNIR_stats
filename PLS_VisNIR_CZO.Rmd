@@ -18,8 +18,9 @@ This document outlines the basic steps in PLS model building and calibration in 
 To begin we need to clear the ram and load the PLS library :
 ```{r}
 rm(list=ls())
-install.packages(pls)
+#install.packages(c("pls", "asdreader"))
 library(pls)
+library(asdreader)
 ```
 
 We need to navigate to the appropriate directory.  This is where you are storing your data and will depent on your machine and path (you will need to change the path)
@@ -33,7 +34,15 @@ setwd(path)
 Next we load the lab and spec data.  This spectral data has already been preproscessed (smoothed and filtered). Your data will lilkely need some smoothing but it is often instrument dependent.  
 
 ```{r}
-spec <- read.table('final_spectra.txt', head = T, stringsAsFactors = F)
+#asd<-asd_file()
+#get_spectra(f, type = "reflectance")
+
+?asdreader()
+
+spec.upload <- read.table('erikatest.txt', sep=",", head = T,  stringsAsFactors = F) #transpose so wavelength as rows, samples as columns
+spec.trans<-t(as.data.frame(spec.upload))
+
+spec<-spec.trans[-c(), ] #remove test sample rows that are not needed
 
 lab <- read.csv('CZO_lab_data.csv', stringsAsFactors = F)
 head(lab) #inspect the labdata
