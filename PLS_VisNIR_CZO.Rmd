@@ -25,6 +25,7 @@ library(pls)
 We need to navigate to the appropriate directory.  This is where you are storing your data and will depent on your machine and path (you will need to change the path)
 
 ```{r}
+#change path to match your local hard copy location
 path <- '/Users/macuser/Dropbox/0Purdue/Nexus/VisNIR_stats'
 setwd(path)
 ```
@@ -32,9 +33,9 @@ setwd(path)
 Next we load the lab and spec data.  This spectral data has already been preproscessed (smoothed and filtered). Your data will lilkely need some smoothing but it is often instrument dependent.  
 
 ```{r}
-spec <- read.table(' .txt', head = T, stringsAsFactors = F)
+spec <- read.table('final_spectra.txt', head = T, stringsAsFactors = F)
 
-lab <- read.csv(' .csv', stringsAsFactors = F)
+lab <- read.csv('CZO_lab_data.csv', stringsAsFactors = F)
 head(lab) #inspect the labdata
 ```
 
@@ -52,19 +53,18 @@ plot(seq(350, 2500, 10), spec[1, -1], type = 'l', ylab = 'reflectance', xlab = '
 
 We need to put the spec data and lab data into a single data frame for PLS modeling
 ```{r}
-TC <- lab$TC_cor #total carbon
+OC <- lab$TC_cor #organic carbon
 X <- as.matrix(spec[, -1]) #spectra data omiting lab IDs, for PLS predictor variables need to be in a single matrix object
-TC.df <- data.frame(TC, I(X))
-TC.df <- na.omit(TC.df)
+OC.df <- data.frame(OC, I(X))
+OC.df <- na.omit(OC.df)
 str(TC.df)
-
 ```
 
 Now we can specific the PLS model.  In this example, we are running a pls model with a leave-one-out crossvalidation using the parameter 'validation'.
 
 We have also limited the number of variables in the pls model to 20 using the parameter 'ncomp'. 
 ```{r}
-pls.TC <- plsr(TC~X, data=TC.df, validation = 'LOO', ncomp = 20)
+pls.OC <- plsr(OC~X, data=OC.df, validation = 'LOO', ncomp = 20)
 ?plsr()
 ```
 
@@ -74,29 +74,29 @@ What you will notice is an innitial sharp increase in model perfoirmance as the 
 
 What we need to do is select the number of latent variables that maximizes gains in model performance without overfitting.  In this case it looks like two latent variables is spot on (red line)  
 ```{r}
-plot(R2(pls.TC))
+plot(R2(pls.OC))
 abline(v=2, col = 'red')
 ```
 
 Now we can take a look at the model performance in more detail.  
 
-First we can predict TC using or estimated model and plot the predictions vs. measured.  Note that we specified the number of latent variables (2)
+First we can predict OC using or estimated model and plot the predictions vs. measured.  Note that we specified the number of latent variables (2)
 ```{r}
-pred.TC <- predict(pls.TC, ncomp = 2)
+pred.OC <- predict(pls.OC, ncomp = 2)
 
-ylim <- range(pred.TC, TC.df$TC)
+ylim <- range(pred.OC, OC.df$OC)
 par(pty = 's')
-plot(pred.TC~TC.df$TC, xlab='measured', ylab = 'predicted', ylim =ylim, xlim = ylim)
+plot(pred.OC~OC.df$OC, xlab='measured', ylab = 'predicted', ylim =ylim, xlim = ylim)
 abline(0,1)
 ```
 
 We can use the built in PLS tools to quantify model performance.
 ```{r}
-R2(pls.TC)
-RMSEP(pls.TC)
+R2(pls.OC)
+RMSEP(pls.OC)
 ```
 
-So for our crude model (ncomp = 2) the R2 = 0.54 and RMSE = 0.41.  
+So for our crude model (ncomp = 2) the R2 =  and RMSE =   .  
 
 There a lot of things we could do to the model to improve the performnce such as diffferent pretreatment options, improved calibration models, etc. This is just a start.
 
