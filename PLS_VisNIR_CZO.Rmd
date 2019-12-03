@@ -1,0 +1,117 @@
+---
+title: "VisNIR_PLS_CZO"
+author: "JAckerson_Jacoby_Foster"
+date: "December 3, 2019"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This document outlines the basic steps in PLS model building and calibration in R using VisNIR data. 
+To begin we need to clear the ram and load the PLS library :
+```{r}
+rm(list=ls())
+install.packages(pls)
+library(pls)
+```
+
+We need to navigate to the appropriate directory.  This is where you are storing your data and will depent on your machine and path (you will need to change the path)
+
+```{r}
+path <- '/Users/macuser/Dropbox/0Purdue/Nexus/VisNIR_stats'
+setwd(path)
+```
+
+Next we load the lab and spec data.  This spectral data has already been preproscessed (smoothed and filtered). Your data will lilkely need some smoothing but it is often instrument dependent.  
+
+```{r}
+spec <- read.table('Bayer_DG_R10_300-2500.txt', head = T, stringsAsFactors = F)
+
+lab <- read.csv('BAYER_FINAL.csv', stringsAsFactors = F)
+head(lab) #inspect the labdata
+```
+
+Because we have more spec than lab samples, we need to remove all spectra w/o lab data for model building.
+You may not need to do this.
+```{r}
+idx <- sapply(lab$ID, function(x) which(spec$lab.id==x))
+spec <- spec[unlist(idx) ,]
+```
+
+Now we can plot some of the spectra
+```{r}
+plot(seq(350, 2500, 10), spec[1, -1], type = 'l', ylab = 'reflectance', xlab = ' wavelength [nm]')
+```
+
+We need to put the spec data and lab data into a single data frame for PLS modeling
+```{r}
+TC <- lab$TC_cor #total carbon
+X <- as.matrix(spec[, -1]) #spectra data omiting lab IDs, for PLS predictor variables need to be in a single matrix object
+TC.df <- data.frame(TC, I(X))
+TC.df <- na.omit(TC.df)
+str(TC.df)
+
+```
+
+Now we can specific the PLS model.  In this example, we are running a pls model with a leave-one-out crossvalidation using the parameter 'validation'.
+
+We have also limited the number of variables in the pls model to 20 using the parameter 'ncomp'. 
+```{r}
+pls.TC <- plsr(TC~X, data=TC.df, validation = 'LOO', ncomp = 20)
+?plsr()
+```
+
+Now we can inspect how model performance (R2) in influenced by number of lattent variables.
+
+What you will notice is an innitial sharp increase in model perfoirmance as the number of variables increases but a decline in the improvement in model performance after that initial increase.  This is common. As we add more latent variables, model performance improves but at the expense of model generlizability (i.e. at high latent variables the model is overfitted to the calibration data)  
+
+What we need to do is select the number of latent variables that maximizes gains in model performance without overfitting.  In this case it looks like two latent variables is spot on (red line)  
+```{r}
+plot(R2(pls.TC))
+abline(v=2, col = 'red')
+```
+
+Now we can take a look at the model performance in more detail.  
+
+First we can predict TC using or estimated model and plot the predictions vs. measured.  Note that we specified the number of latent variables (2)
+```{r}
+pred.TC <- predict(pls.TC, ncomp = 2)
+
+ylim <- range(pred.TC, TC.df$TC)
+par(pty = 's')
+plot(pred.TC~TC.df$TC, xlab='measured', ylab = 'predicted', ylim =ylim, xlim = ylim)
+abline(0,1)
+```
+
+We can use the built in PLS tools to quantify model performance.
+```{r}
+R2(pls.TC)
+RMSEP(pls.TC)
+```
+
+So for our crude model (ncomp = 2) the R2 = 0.54 and RMSE = 0.41.  
+
+There a lot of things we could do to the model to improve the performnce such as diffferent pretreatment options, improved calibration models, etc. This is just a start.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
