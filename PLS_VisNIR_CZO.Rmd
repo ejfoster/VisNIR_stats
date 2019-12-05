@@ -85,7 +85,7 @@ Now we can specific the PLS model.  In this example, we are running a pls model 
 
 We have also limited the number of variables in the pls model to 20 using the parameter 'ncomp'. 
 ```{r}
-pls.OC <- plsr(OC~X, data=OC.df, validation = 'LOO', ncomp = 20)
+pls.OC <- plsr(OC~X, data=OC.df, validation = 'CV', ncomp = 20, segments= 10)
 ```
 
 Now we can inspect how model performance (R2) in influenced by number of lattent variables.
@@ -94,14 +94,14 @@ What you will notice is an innitial sharp increase in model perfoirmance as the 
 
 What we need to do is select the number of latent variables that maximizes gains in model performance without overfitting.  In this case it looks like two latent variables is spot on (red line)  
 ```{r}
-plot(R2(pls.OC)); abline(v=4, col = 'red'); abline(v=5, col = 'blue'); abline(h=.8, col = 'darkgray', lty='dotted'); 
+plot(R2(pls.OC)); abline(v=4, col = 'red'); abline(v=2, col = 'blue'); abline(h=.8, col = 'darkgray', lty='dotted'); 
 ```
 
 Now we can take a look at the model performance in more detail.  
 
 First we can predict OC using or estimated model and plot the predictions vs. measured.  Note that we specified the number of latent variables (2)
 ```{r}
-mycomp<-20
+mycomp<-3
 pred.OC <- predict(pls.OC, ncomp = mycomp)
 
 ylim <- range(pred.OC, OC.df$OC)
@@ -116,7 +116,9 @@ We can use the built in PLS tools to quantify model performance.
 ```{r}
 R2(pls.OC)
 RMSEP(pls.OC)
-str(RMSEP(pls.OC))
+
+#PCA of spectra (with nm) - diff of depth
+# validation of model - leave 2cores out 
 ```
 
 So for our crude model (ncomp = 2) the R2 =  and RMSE =   .  
