@@ -29,6 +29,7 @@ We need to navigate to the appropriate directory.  This is where you are storing
 ```{r}
 #change path to match your local hard copy location
 path <- '/Users/macuser/Dropbox/0Purdue/Nexus/VisNIR_stats'
+
 #path <- 'C:\\Users\\jacob\\OneDrive\\Documents\\CZO'
 setwd(path)
 
