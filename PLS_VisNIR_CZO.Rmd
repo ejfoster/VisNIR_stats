@@ -18,9 +18,10 @@ This document outlines the basic steps in PLS model building and calibration in 
 To begin we need to clear the ram and load the PLS library :
 ```{r}
 rm(list=ls())
+
 #install.packages(c("pls", "asdreader"))
 library(pls)
-library(asdreader)
+#library(asdreader)
 ```
 
 We need to navigate to the appropriate directory.  This is where you are storing your data and will depent on your machine and path (you will need to change the path)
@@ -29,6 +30,7 @@ We need to navigate to the appropriate directory.  This is where you are storing
 #change path to match your local hard copy location
 path <- '/Users/macuser/Dropbox/0Purdue/Nexus/VisNIR_stats'
 setwd(path)
+
 ```
 
 Next we load the lab and spec data.  This spectral data has already been preproscessed (smoothed and filtered). Your data will lilkely need some smoothing but it is often instrument dependent.  
@@ -37,36 +39,46 @@ Next we load the lab and spec data.  This spectral data has already been prepros
 #asd<-asd_file()
 #get_spectra(f, type = "reflectance")
 
-?asdreader()
+spec.upload <- read.table('FINAL_SPECTRA.txt', sep=",", head = T,  stringsAsFactors = F) #transpose so wavelength = rows, samples as columns
+spec.trans<-t(spec.upload)
+colnames(spec.trans) <- spec.trans[1,] #take 1st row as column names
+spec <- spec.trans[-1, ] #remove first row
+rownames(spec)<-sub('.ASD', '', rownames(spec)) #remove .ASD from sample names
+samples<-rownames(spec) #save sample names in spec
+length(samples) #178
 
-spec.upload <- read.table('erikatest.txt', sep=",", head = T,  stringsAsFactors = F) #transpose so wavelength as rows, samples as columns
-spec.trans<-t(as.data.frame(spec.upload))
-
-spec<-spec.trans[-c(), ] #remove test sample rows that are not needed
-
-lab <- read.csv('CZO_lab_data.csv', stringsAsFactors = F)
-head(lab) #inspect the labdata
+lab <- read.csv('CZO_OC.csv', stringsAsFactors = F)
+str(lab) #inspect the labdata, 166 obs; variable name OC.g.kg
 ```
 
-Because we have more spec than lab samples, we need to remove all spectra w/o lab data for model building.
-You may not need to do this.
+Match the samples of the two datasets
 ```{r}
-idx <- sapply(lab$ID, function(x) which(spec$lab.id==x))
-spec <- spec[unlist(idx) ,]
+#idx <- sapply(lab$ID, function(x) which(spec$lab.id==x)) #more spec than lab data
+#spec <- spec[unlist(idx) ,]
+nrow(spec); nrow(lab)
+
+spec<-spec[ match(lab$ID, rownames(spec)), ] #match which rows in spec are in labdata 
+
+#if lab data contains more samples
+  #idx <- sapply(samples, function(x) which(lab$ID==x)) %>% unlist()
+  #lab<-lab[idx,]
+
+nrow(spec); nrow(lab)
+
 ```
 
 Now we can plot some of the spectra
 ```{r}
-plot(seq(350, 2500, 10), spec[1, -1], type = 'l', ylab = 'reflectance', xlab = ' wavelength [nm]')
+plot(seq(350, 2500, 1), spec[1, ], type = 'l', ylab = 'reflectance', xlab = ' wavelength [nm]') #seq goes by 1, don't subtract 1st column
 ```
 
 We need to put the spec data and lab data into a single data frame for PLS modeling
 ```{r}
-OC <- lab$TC_cor #organic carbon
-X <- as.matrix(spec[, -1]) #spectra data omiting lab IDs, for PLS predictor variables need to be in a single matrix object
+OC <- lab$OC.g.kg #organic carbon
+X <- as.matrix(spec) #spectra data omiting lab IDs, for PLS predictor variables need to be in a single matrix object
 OC.df <- data.frame(OC, I(X))
 OC.df <- na.omit(OC.df)
-str(TC.df)
+str(OC.df)
 ```
 
 Now we can specific the PLS model.  In this example, we are running a pls model with a leave-one-out crossvalidation using the parameter 'validation'.
@@ -74,7 +86,6 @@ Now we can specific the PLS model.  In this example, we are running a pls model 
 We have also limited the number of variables in the pls model to 20 using the parameter 'ncomp'. 
 ```{r}
 pls.OC <- plsr(OC~X, data=OC.df, validation = 'LOO', ncomp = 20)
-?plsr()
 ```
 
 Now we can inspect how model performance (R2) in influenced by number of lattent variables.
@@ -83,26 +94,29 @@ What you will notice is an innitial sharp increase in model perfoirmance as the 
 
 What we need to do is select the number of latent variables that maximizes gains in model performance without overfitting.  In this case it looks like two latent variables is spot on (red line)  
 ```{r}
-plot(R2(pls.OC))
-abline(v=2, col = 'red')
+plot(R2(pls.OC)); abline(v=4, col = 'red'); abline(v=5, col = 'blue'); abline(h=.8, col = 'darkgray', lty='dotted'); 
 ```
 
 Now we can take a look at the model performance in more detail.  
 
 First we can predict OC using or estimated model and plot the predictions vs. measured.  Note that we specified the number of latent variables (2)
 ```{r}
-pred.OC <- predict(pls.OC, ncomp = 2)
+mycomp<-20
+pred.OC <- predict(pls.OC, ncomp = mycomp)
 
 ylim <- range(pred.OC, OC.df$OC)
-par(pty = 's')
-plot(pred.OC~OC.df$OC, xlab='measured', ylab = 'predicted', ylim =ylim, xlim = ylim)
-abline(0,1)
+#par(pty = 's')
+
+plot(pred.OC~OC.df$OC, xlab='measured', ylab = 'predicted', ylim =ylim, xlim = ylim); abline(0,1); text(x=40, y=7, labels= "R2=");  text(x=43, y=7, labels= round(R2(pls.OC)$val[mycomp],2));
+text(x=40, y=4, labels= "CV.adj="); text(x=44, y=4, labels= round(RMSEP(pls.OC)$val[2,1,mycomp],2));
+text(x=40, y=10, labels= "ncomp=");text(x=43, y=10.5, labels= mycomp)
 ```
 
 We can use the built in PLS tools to quantify model performance.
 ```{r}
 R2(pls.OC)
 RMSEP(pls.OC)
+str(RMSEP(pls.OC))
 ```
 
 So for our crude model (ncomp = 2) the R2 =  and RMSE =   .  
